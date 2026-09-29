@@ -16,15 +16,15 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
       - name: Install Android SDK components
+        shell: bash
         run: |
+          sdkmanager --version
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
@@ -39,7 +39,7 @@ jobs:
           rm -rf upstream
           mkdir upstream
           unzip -q datnet-share-v5-final.zip -d upstream
-          find upstream -maxdepth 6 -name gradlew -type f -print
+          find upstream -maxdepth 6 -name settings.gradle -o -name settings.gradle.kts -print
 
       - name: Apply project patches
         run: |
@@ -52,14 +52,16 @@ jobs:
 
       - name: Locate Gradle project
         id: locate
+        shell: bash
         run: |
-          ROOT="$(find "$GITHUB_WORKSPACE/upstream" -name settings.gradle -o -name settings.gradle.kts | head -1 | xargs -r dirname)"
+          ROOT="$(find "$GITHUB_WORKSPACE/upstream" -type f \( -name settings.gradle -o -name settings.gradle.kts \) -print -quit | xargs -r dirname)"
           test -n "$ROOT"
           echo "root=$ROOT" >> "$GITHUB_OUTPUT"
 
       - name: Build debug APK
         working-directory: ${{ steps.locate.outputs.root }}
         run: |
+          gradle --version
           gradle assembleDebug --stacktrace --no-daemon --no-build-cache
 
       - name: Upload APK
