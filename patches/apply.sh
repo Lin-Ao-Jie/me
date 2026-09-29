@@ -18,24 +18,37 @@ copy WifiDirectClient.kt app/src/main/java/com/datanet/share/receiver/WifiDirect
 python3 - "$ROOT/app/src/main/AndroidManifest.xml" <<'PY'
 from pathlib import Path
 import sys
-p=Path(sys.argv[1])
-s=p.read_text()
-s=s.replace('<activity\n            android:name=".MainActivity"', '<activity\n            android:name=".MainActivity"', 1)
-marker='''        <activity
+p = Path(sys.argv[1])
+s = p.read_text()
+
+# Replace the existing launcher MainActivity block with AutoLaunchActivity,
+# while keeping MainActivity available as a normal exported activity.
+old = '''        <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTask">'''
-if marker in s:
-    s=s.replace(marker, '''        <activity
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>'''
+new = '''        <activity
             android:name=".AutoLaunchActivity"
             android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
         </activity>
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTask">''')
-    s=s.replace('''        <service
+            android:launchMode="singleTask" />'''
+s = s.replace(old, new)
+
+if 'android:name=".AutoCoordinatorService"' not in s:
+    s = s.replace('''        <service
             android:name=".receiver.ReceiverService"''', '''        <service
             android:name=".AutoCoordinatorService"
             android:exported="false"
@@ -52,35 +65,5 @@ if marker in s:
 
         <service
             android:name=".receiver.ReceiverService"''')
-p.write_text(s)
-PY
-
-# Make the auto launcher the visible launcher while retaining the original MainActivity.
-python3 - "$ROOT/app/src/main/AndroidManifest.xml" <<'PY'
-from pathlib import Path
-import sys
-p=Path(sys.argv[1]); s=p.read_text()
-old='''        <activity
-            android:name=".MainActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>'''
-new='''        <activity
-            android:name=".AutoLaunchActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-
-        <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:launchMode="singleTask" />'''
-s=s.replace(old,new)
 p.write_text(s)
 PY
