@@ -4,18 +4,16 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - "datanetshare/**"
       - ".github/workflows/build-datanetshare.yml"
+      - "patches/**"
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: datanetshare
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout controller repo
+        uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -26,7 +24,7 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install SDK
+      - name: Install Android SDK
         run: |
           sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
           yes | sdkmanager --licenses >/dev/null || true
@@ -36,12 +34,40 @@ jobs:
         with:
           gradle-version: "8.5"
 
+      - name: Download DataNetShare source
+        run: |
+          curl -L --fail --retry 3 \
+            https://raw.githubusercontent.com/Keggin-AI/DataNetShare/main/datnet-share-v5-final.zip \
+            -o datnet-share-v5-final.zip
+          mkdir -p upstream
+          unzip -q datnet-share-v5-final.zip -d upstream
+          find upstream -maxdepth 5 -name gradlew -type f -print
+
+      - name: Apply project patches
+        run: |
+          if [ -f patches/apply.sh ]; then
+            chmod +x patches/apply.sh
+            ./patches/apply.sh "$GITHUB_WORKSPACE/upstream"
+          else
+            echo "No patches yet; building upstream baseline."
+          fi
+
+      - name: Locate Gradle project
+        id: locate
+        run: |
+          ROOT="$(find "$GITHUB_WORKSPACE/upstream" -name gradlew -type f -print -quit | xargs -r dirname)"
+          test -n "$ROOT"
+          echo "root=$ROOT" >> "$GITHUB_OUTPUT"
+
       - name: Build debug APK
-        run: gradle assembleDebug --stacktrace --no-daemon
+        working-directory: ${{ steps.locate.outputs.root }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: DataNetShare-adaptive-debug
-          path: datanetshare/app/build/outputs/apk/debug/*.apk
+          path: upstream/**/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
