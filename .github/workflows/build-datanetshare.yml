@@ -21,13 +21,27 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android SDK
+      - name: Configure Android SDK
+        shell: bash
         run: |
-          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          if [ -n "${ANDROID_SDK_ROOT:-}" ]; then
+            SDKROOT="$ANDROID_SDK_ROOT"
+          elif [ -n "${ANDROID_HOME:-}" ]; then
+            SDKROOT="$ANDROID_HOME"
+          else
+            SDKROOT="$HOME/android-sdk"
+          fi
+          echo "ANDROID_SDK_ROOT=$SDKROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_HOME=$SDKROOT" >> "$GITHUB_ENV"
+          echo "$SDKROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$SDKROOT/platform-tools" >> "$GITHUB_PATH"
+
+      - name: Install Android SDK components
+        shell: bash
+        run: |
+          sdkmanager --version
           yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -36,12 +50,11 @@ jobs:
 
       - name: Download DataNetShare source
         run: |
-          curl -L --fail --retry 3 \
-            https://raw.githubusercontent.com/Keggin-AI/DataNetShare/main/datnet-share-v5-final.zip \
-            -o datnet-share-v5-final.zip
-          mkdir -p upstream
+          curl -L --fail --retry 3 https://raw.githubusercontent.com/Keggin-AI/DataNetShare/main/datnet-share-v5-final.zip -o datnet-share-v5-final.zip
+          rm -rf upstream
+          mkdir upstream
           unzip -q datnet-share-v5-final.zip -d upstream
-          find upstream -maxdepth 5 -name gradlew -type f -print
+          find upstream -maxdepth 6 -name gradlew -type f -print
 
       - name: Apply project patches
         run: |
