@@ -32,12 +32,9 @@ jobs:
           echo "$SDKROOT/platform-tools" >> "$GITHUB_PATH"
           echo "$SDKROOT/emulator" >> "$GITHUB_PATH"
           SDKMANAGER="$SDKROOT/cmdline-tools/latest/bin/sdkmanager"
-          if [ ! -x "$SDKMANAGER" ]; then
-            SDKMANAGER="$SDKROOT/cmdline-tools/16.0/bin/sdkmanager"
-          fi
+          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$SDKROOT/cmdline-tools/16.0/bin/sdkmanager"; fi
           test -x "$SDKMANAGER"
           echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
-          "$SDKMANAGER" --version
 
       - name: Install Android SDK components
         shell: bash
@@ -56,16 +53,7 @@ jobs:
           rm -rf upstream
           mkdir upstream
           unzip -q datnet-share-v5-final.zip -d upstream
-          find upstream -maxdepth 6 -name settings.gradle -o -name settings.gradle.kts -print
-
-      - name: Apply project patches
-        run: |
-          if [ -f patches/apply.sh ]; then
-            chmod +x patches/apply.sh
-            ./patches/apply.sh "$GITHUB_WORKSPACE/upstream"
-          else
-            echo "No patches yet; building upstream baseline."
-          fi
+          find upstream -type f \( -name settings.gradle -o -name settings.gradle.kts \) -print
 
       - name: Locate Gradle project
         id: locate
@@ -75,10 +63,18 @@ jobs:
           test -n "$ROOT"
           echo "root=$ROOT" >> "$GITHUB_OUTPUT"
 
+      - name: Apply project patches
+        run: |
+          if [ -f patches/apply.sh ]; then
+            chmod +x patches/apply.sh
+            ./patches/apply.sh "${{ steps.locate.outputs.root }}"
+          else
+            echo "No patches yet; building upstream baseline."
+          fi
+
       - name: Build debug APK
         working-directory: ${{ steps.locate.outputs.root }}
         run: |
-          gradle --version
           gradle assembleDebug --stacktrace --no-daemon --no-build-cache
 
       - name: Upload APK
