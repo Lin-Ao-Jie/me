@@ -21,25 +21,10 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Configure Android SDK
-        shell: bash
-        run: |
-          if [ -n "${ANDROID_SDK_ROOT:-}" ]; then
-            SDKROOT="$ANDROID_SDK_ROOT"
-          elif [ -n "${ANDROID_HOME:-}" ]; then
-            SDKROOT="$ANDROID_HOME"
-          else
-            SDKROOT="$HOME/android-sdk"
-          fi
-          echo "ANDROID_SDK_ROOT=$SDKROOT" >> "$GITHUB_ENV"
-          echo "ANDROID_HOME=$SDKROOT" >> "$GITHUB_ENV"
-          echo "$SDKROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
-          echo "$SDKROOT/platform-tools" >> "$GITHUB_PATH"
-
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
       - name: Install Android SDK components
-        shell: bash
         run: |
-          sdkmanager --version
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
@@ -68,15 +53,14 @@ jobs:
       - name: Locate Gradle project
         id: locate
         run: |
-          ROOT="$(find "$GITHUB_WORKSPACE/upstream" -name gradlew -type f -print -quit | xargs -r dirname)"
+          ROOT="$(find "$GITHUB_WORKSPACE/upstream" -name settings.gradle -o -name settings.gradle.kts | head -1 | xargs -r dirname)"
           test -n "$ROOT"
           echo "root=$ROOT" >> "$GITHUB_OUTPUT"
 
       - name: Build debug APK
         working-directory: ${{ steps.locate.outputs.root }}
         run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace --no-daemon
+          gradle assembleDebug --stacktrace --no-daemon --no-build-cache
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
