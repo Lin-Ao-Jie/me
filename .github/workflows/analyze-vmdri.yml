@@ -1,0 +1,45 @@
+name: Analyze VMDri Source
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "analysis/vmdri/source/**"
+      - ".github/workflows/analyze-vmdri.yml"
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check source
+        run: |
+          test -d analysis/vmdri/source
+          test -n "$(find analysis/vmdri/source -type f -name '*.java' -print -quit)"
+
+      - name: Search BLE/control transport
+        run: |
+          grep -RniE             "BluetoothGatt|BluetoothGattServer|ScanFilter|ParcelUuid|UUID|serviceUuid|characteristic|advertis|notify|writeCharacteristic|readCharacteristic|send.*Data|recv.*Data|ctrlChannel"             analysis/vmdri/source > ble-control.txt || true
+
+      - name: Search Communication Sharing network control
+        run: |
+          grep -RniE             "vdfs_net_share|vdfs_comm_share|serviceId.*vdfs|businessState|sendBusinessState|notifyCommStateToRemote|StartCommShare|StopCommShare"             analysis/vmdri/source > net-control.txt || true
+
+      - name: Search device capability and account gating
+        run: |
+          grep -RniE             "CommDevInfo|DeviceType|Capality|CapabilityType|PAD_SUPPORT|openId|account|login|bind|supported|deviceType|connTypeBitmask"             analysis/vmdri/source > capability-control.txt || true
+
+      - name: Search P2P/data channel
+        run: |
+          grep -RniE             "WifiP2p|P2pInfoParcel|getLocalP2pInfo|getRemoteP2pInfo|initDataChannel|IDataChannel|sendData|ready"             analysis/vmdri/source > p2p-data-control.txt || true
+
+      - name: Package analysis results
+        run: |
+          tar -czf vmdri-analysis-results.tar.gz             ble-control.txt             net-control.txt             capability-control.txt             p2p-data-control.txt
+
+      - name: Upload analysis
+        uses: actions/upload-artifact@v4
+        with:
+          name: vmdri-analysis-results
+          path: vmdri-analysis-results.tar.gz
