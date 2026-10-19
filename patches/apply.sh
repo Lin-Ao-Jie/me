@@ -14,6 +14,9 @@ copy BootReceiver.kt app/src/main/java/com/datanet/share/BootReceiver.kt
 copy TrafficMeter.kt app/src/main/java/com/datanet/share/common/TrafficMeter.kt
 copy NetworkState.kt app/src/main/java/com/datanet/share/common/NetworkState.kt
 copy WifiDirectClient.kt app/src/main/java/com/datanet/share/receiver/WifiDirectClient.kt
+copy VivoCommShareProtocol.kt app/src/main/java/com/datanet/share/vivo/VivoCommShareProtocol.kt
+copy VivoCommShareDiagnostics.kt app/src/main/java/com/datanet/share/vivo/VivoCommShareDiagnostics.kt
+copy VivoCommShareProbeActivity.kt app/src/main/java/com/datanet/share/vivo/VivoCommShareProbeActivity.kt
 
 python3 - "$ROOT/app/src/main/AndroidManifest.xml" <<'PY'
 from pathlib import Path
@@ -21,8 +24,6 @@ import sys
 p = Path(sys.argv[1])
 s = p.read_text()
 
-# Replace the existing launcher MainActivity block with AutoLaunchActivity,
-# while keeping MainActivity available as a normal exported activity.
 old = '''        <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -62,6 +63,10 @@ if 'android:name=".AutoCoordinatorService"' not in s:
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
+
+        <activity
+            android:name=".vivo.VivoCommShareProbeActivity"
+            android:exported="true" />
 
         <service
             android:name=".receiver.ReceiverService"''')
